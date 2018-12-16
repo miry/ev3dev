@@ -1,0 +1,6 @@
+github.com/ev3go/ev3 v0.0.0-20180809222216-71c98163af71 h1:Z/91t3Mco51yJ8FeHONLHhTk557H2vfIdp5afTOqmZo=
+github.com/ev3go/ev3 v0.0.0-20180809222216-71c98163af71/go.mod h1:YBb2YEFMxoLDpwFOG9ZGhmvQp049IwkdzVw+xoBUpCc=
+github.com/ev3go/ev3dev v0.0.0-20180909115915-fabc942293df h1:sI26yVs75GJD5EKkLxycz0RbvXxiz8GbUqgySmJDvsM=
+github.com/ev3go/ev3dev v0.0.0-20180909115915-fabc942293df/go.mod h1:xkqnu0U+159iVe5q0ABr7NJJCFX51cOae/Qy4/TDZqI=
+golang.org/x/sys v0.0.0-20181213200352-4d1cda033e06 h1:0oC8rFnE+74kEmuHZ46F6KHsMr5Gx2gUQPuNz28iQZM=
+golang.org/x/sys v0.0.0-20181213200352-4d1cda033e06/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=

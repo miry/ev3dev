@@ -9,13 +9,13 @@ import (
 	"github.com/ev3go/ev3"
 	"github.com/ev3go/ev3dev/fb"
 
-	"github.com/miry/ev3dev/pkg/motor"
+	"github.com/miry/ev3dev/pkg/dev"
 )
 
 type Bot struct {
-	MMotor *motor.Motor
-	LMotor *motor.Motor
-	RMotor *motor.Motor
+	MMotor *dev.Motor
+	LMotor *dev.Motor
+	RMotor *dev.Motor
 }
 
 func New() *Bot {
@@ -35,59 +35,56 @@ func (b *Bot) initScreen() {
 var err error
 
 func (b *Bot) initMotors() error {
-	b.MMotor, err = motor.New("outA", "lego-ev3-m-motor")
+	b.MMotor, err = dev.New("outA", "lego-ev3-m-motor")
 	if err != nil {
 		return err
 	}
-	b.LMotor, err = motor.New("outB", "lego-ev3-l-motor")
+	b.LMotor, err = dev.New("outB", "lego-ev3-l-motor")
 	if err != nil {
 		return err
 	}
-	b.RMotor, err = motor.New("outC", "lego-ev3-l-motor")
+	b.RMotor, err = dev.New("outC", "lego-ev3-l-motor")
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+func (b *Bot) Forward(power int) {
+	b.MoveTank(power, power)
+}
+
+func (b *Bot) Steering(power int) {
+	b.MoveTank(power, -power)
+}
+
+func (b *Bot) MoveTank(right, left int) {
+	b.RMotor.SetSpeed(right)
+	b.LMotor.SetSpeed(left)
+	dev.CheckErrors(b.RMotor, b.LMotor)
+	time.Sleep(2 * time.Second)
+	b.RMotor.Stop()
+	b.LMotor.Stop()
+	dev.CheckErrors(b.RMotor, b.LMotor)
+}
+
 func (b *Bot) Run() {
 	for i := 0; i < 2; i++ {
-		// Render the gopher to the screen.
-		draw.Draw(ev3.LCD, ev3.LCD.Bounds(), gopher, gopher.Bounds().Min, draw.Src)
-
-		// Run medium motor on outA at speed 50, wait for 0.5 second and then brake.
-		b.MMotor.Run(50)
-
-		// Run large motors on B+C at speed 70, wait for 2 second and then brake.
-		b.RMotor.SetSpeed(70)
-		b.LMotor.SetSpeed(70)
-		motor.CheckErrors(b.RMotor, b.LMotor)
-		time.Sleep(2 * time.Second)
-		b.RMotor.Stop()
-		b.LMotor.Stop()
-		motor.CheckErrors(b.RMotor, b.LMotor)
-
-		// Run medium motor on outA at speed -75, wait for 0.5 second and then brake.
-		b.MMotor.SetSpeed(-75)
-		time.Sleep(time.Second / 2)
-		b.MMotor.Stop()
-		motor.CheckErrors(b.MMotor)
-
-		// Render the gopher to the screen.
-		draw.Draw(ev3.LCD, ev3.LCD.Bounds(), gopherSquint, gopherSquint.Bounds().Min, draw.Src)
-
-		// Run large motors on B at speed -50 and C at speed 50, wait for 1 second and then brake.
-		b.RMotor.SetSpeed(-50)
-		b.LMotor.SetSpeed(50)
-		motor.CheckErrors(b.RMotor, b.LMotor)
-		time.Sleep(time.Second)
-		b.RMotor.Stop()
-		b.LMotor.Stop()
-		motor.CheckErrors(b.RMotor, b.LMotor)
+		b.Draw(gopher)
+		b.Forward(70)
+		b.Draw(gopherSquint)
+		b.Steering(50)
 	}
 }
 
+func (b *Bot) Draw(picture *fb.Monochrome) {
+	draw.Draw(ev3.LCD, ev3.LCD.Bounds(), picture, picture.Bounds().Min, draw.Src)
+}
+
 func (b *Bot) Exit() {
+	b.RMotor.Stop()
+	b.LMotor.Stop()
+	b.MMotor.Stop()
 	ev3.LCD.Close()
 }
 

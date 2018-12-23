@@ -1,4 +1,4 @@
-package motor
+package dev
 
 import (
 	"fmt"

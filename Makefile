@@ -24,4 +24,4 @@ release: linux deploy
 
 .PHONY: run
 run: release
-		ssh -it robot@ev3dev.local ./bin/$(BINARY)-$(VERSION)-linux-arm5
+		ssh -t robot@ev3dev.local ./bin/$(BINARY)-$(VERSION)-linux-arm5

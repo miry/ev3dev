@@ -16,84 +16,136 @@ import (
 	"github.com/ev3go/ev3dev/fb"
 )
 
-func main() {
+type Motor struct {
+	*ev3dev.TachoMotor
+	MaxSpeed int
+}
+
+type Bot struct {
+	MMotor *Motor
+	LMotor *Motor
+	RMotor *Motor
+}
+
+func NewBot() *Bot {
+	bot := &Bot{}
+	bot.initScreen()
+	err := bot.initMotors()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return bot
+}
+
+func (b *Bot) initScreen() {
 	ev3.LCD.Init(true)
-	defer ev3.LCD.Close()
+}
 
-	// Get the handle for the medium motor on outA.
-	outA, err := ev3dev.TachoMotorFor("ev3-ports:outA", "lego-ev3-m-motor")
-	if err != nil {
-		log.Fatalf("failed to find medium motor on outA: %v", err)
-	}
-	err = outA.SetStopAction("brake").Err()
-	if err != nil {
-		log.Fatalf("failed to set brake stop for medium motor on outA: %v", err)
-	}
-	maxMedium := outA.MaxSpeed()
+var err error
 
-	// Get the handle for the left large motor on outB.
-	outB, err := ev3dev.TachoMotorFor("ev3-ports:outB", "lego-ev3-l-motor")
+func (b *Bot) initMotors() error {
+	b.MMotor, err = NewMotor("outA", "lego-ev3-m-motor")
 	if err != nil {
-		log.Fatalf("failed to find left large motor on outB: %v", err)
+		return err
 	}
-	err = outB.SetStopAction("brake").Err()
+	b.LMotor, err = NewMotor("outB", "lego-ev3-l-motor")
 	if err != nil {
-		log.Fatalf("failed to set brake stop for left large motor on outB: %v", err)
+		return err
 	}
-	maxLarge := outB.MaxSpeed()
+	b.RMotor, err = NewMotor("outC", "lego-ev3-l-motor")
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Get the handle for the right large motor on outC.
-	outC, err := ev3dev.TachoMotorFor("ev3-ports:outC", "lego-ev3-l-motor")
-	if err != nil {
-		log.Fatalf("failed to find right large motor on outC: %v", err)
-	}
-	err = outC.SetStopAction("brake").Err()
-	if err != nil {
-		log.Fatalf("failed to set brake stop for right large motor on outB: %v", err)
-	}
-
+func (b *Bot) Run() {
 	for i := 0; i < 2; i++ {
 		// Render the gopher to the screen.
 		draw.Draw(ev3.LCD, ev3.LCD.Bounds(), gopher, gopher.Bounds().Min, draw.Src)
 
 		// Run medium motor on outA at speed 50, wait for 0.5 second and then brake.
-		outA.SetSpeedSetpoint(50 * maxMedium / 100).Command("run-forever")
-		time.Sleep(time.Second / 2)
-		outA.Command("stop")
-		checkErrors(outA)
+		b.MMotor.Run(50)
 
 		// Run large motors on B+C at speed 70, wait for 2 second and then brake.
-		outB.SetSpeedSetpoint(70 * maxLarge / 100).Command("run-forever")
-		outC.SetSpeedSetpoint(70 * maxLarge / 100).Command("run-forever")
-		checkErrors(outB, outC)
+		b.RMotor.SetSpeed(70)
+		b.LMotor.SetSpeed(70)
+		checkErrors(b.RMotor, b.LMotor)
 		time.Sleep(2 * time.Second)
-		outB.Command("stop")
-		outC.Command("stop")
-		checkErrors(outB, outC)
+		b.RMotor.Stop()
+		b.LMotor.Stop()
+		checkErrors(b.RMotor, b.LMotor)
 
 		// Run medium motor on outA at speed -75, wait for 0.5 second and then brake.
-		outA.SetSpeedSetpoint(-75 * maxMedium / 100).Command("run-forever")
+		b.MMotor.SetSpeed(-75)
 		time.Sleep(time.Second / 2)
-		outA.Command("stop")
-		checkErrors(outA)
+		b.MMotor.Stop()
+		checkErrors(b.MMotor)
 
 		// Render the gopher to the screen.
 		draw.Draw(ev3.LCD, ev3.LCD.Bounds(), gopherSquint, gopherSquint.Bounds().Min, draw.Src)
 
 		// Run large motors on B at speed -50 and C at speed 50, wait for 1 second and then brake.
-		outB.SetSpeedSetpoint(-50 * maxLarge / 100).Command("run-forever")
-		outC.SetSpeedSetpoint(50 * maxLarge / 100).Command("run-forever")
-		checkErrors(outB, outC)
+		b.RMotor.SetSpeed(-50)
+		b.LMotor.SetSpeed(50)
+		checkErrors(b.RMotor, b.LMotor)
 		time.Sleep(time.Second)
-		outB.Command("stop")
-		outC.Command("stop")
-		checkErrors(outB, outC)
+		b.RMotor.Stop()
+		b.LMotor.Stop()
+		checkErrors(b.RMotor, b.LMotor)
 	}
 }
 
-func checkErrors(devs ...ev3dev.Device) {
+func (b *Bot) Exit() {
+	ev3.LCD.Close()
+}
+
+func NewMotor(port, deviceName string) (*Motor, error) {
+	var err error
+	var motor *ev3dev.TachoMotor
+	// Get the handle for the medium motor on outA.
+	motor, err = ev3dev.TachoMotorFor("ev3-ports:"+port, deviceName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find %s motor on %s: %v", deviceName, port, err)
+	}
+	err = motor.SetStopAction("brake").Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set brake stop for %s motor on %s: %v", deviceName, port, err)
+	}
+	speed := motor.MaxSpeed()
+
+	result := &Motor{
+		motor,
+		speed,
+	}
+	return result, nil
+}
+
+func (m *Motor) Run(speed int) {
+	m.SetSpeed(speed)
+	time.Sleep(time.Second / 2)
+	m.Stop()
+	checkErrors(m)
+}
+
+func (m *Motor) SetSpeed(speed int) {
+	m.SetSpeedSetpoint(speed * m.MaxSpeed / 100).Command("run-forever")
+}
+
+func (m *Motor) Stop() {
+	m.Command("stop")
+}
+
+func main() {
+	bot := NewBot()
+	defer bot.Exit()
+
+	bot.Run()
+}
+
+func checkErrors(devs ...*Motor) {
 	for _, d := range devs {
-		err := d.(*ev3dev.TachoMotor).Err()
+		err := d.TachoMotor.Err()
 		if err != nil {
 			drv, dErr := ev3dev.DriverFor(d)
 			if dErr != nil {

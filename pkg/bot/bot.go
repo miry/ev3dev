@@ -1,33 +1,24 @@
-// findpath is a reimplementation of the Demo program loaded on new ev3 bricks,
-// without sound. It demonstrates the use of the ev3dev Go API.
-// The control does not make full use of the ev3dev API where it could.
-
-package main
+package bot
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 	"log"
 	"time"
 
 	"github.com/ev3go/ev3"
-	"github.com/ev3go/ev3dev"
 	"github.com/ev3go/ev3dev/fb"
+
+	"github.com/miry/ev3dev/pkg/motor"
 )
 
-type Motor struct {
-	*ev3dev.TachoMotor
-	MaxSpeed int
-}
-
 type Bot struct {
-	MMotor *Motor
-	LMotor *Motor
-	RMotor *Motor
+	MMotor *motor.Motor
+	LMotor *motor.Motor
+	RMotor *motor.Motor
 }
 
-func NewBot() *Bot {
+func New() *Bot {
 	bot := &Bot{}
 	bot.initScreen()
 	err := bot.initMotors()
@@ -44,15 +35,15 @@ func (b *Bot) initScreen() {
 var err error
 
 func (b *Bot) initMotors() error {
-	b.MMotor, err = NewMotor("outA", "lego-ev3-m-motor")
+	b.MMotor, err = motor.New("outA", "lego-ev3-m-motor")
 	if err != nil {
 		return err
 	}
-	b.LMotor, err = NewMotor("outB", "lego-ev3-l-motor")
+	b.LMotor, err = motor.New("outB", "lego-ev3-l-motor")
 	if err != nil {
 		return err
 	}
-	b.RMotor, err = NewMotor("outC", "lego-ev3-l-motor")
+	b.RMotor, err = motor.New("outC", "lego-ev3-l-motor")
 	if err != nil {
 		return err
 	}
@@ -70,17 +61,17 @@ func (b *Bot) Run() {
 		// Run large motors on B+C at speed 70, wait for 2 second and then brake.
 		b.RMotor.SetSpeed(70)
 		b.LMotor.SetSpeed(70)
-		checkErrors(b.RMotor, b.LMotor)
+		motor.CheckErrors(b.RMotor, b.LMotor)
 		time.Sleep(2 * time.Second)
 		b.RMotor.Stop()
 		b.LMotor.Stop()
-		checkErrors(b.RMotor, b.LMotor)
+		motor.CheckErrors(b.RMotor, b.LMotor)
 
 		// Run medium motor on outA at speed -75, wait for 0.5 second and then brake.
 		b.MMotor.SetSpeed(-75)
 		time.Sleep(time.Second / 2)
 		b.MMotor.Stop()
-		checkErrors(b.MMotor)
+		motor.CheckErrors(b.MMotor)
 
 		// Render the gopher to the screen.
 		draw.Draw(ev3.LCD, ev3.LCD.Bounds(), gopherSquint, gopherSquint.Bounds().Min, draw.Src)
@@ -88,76 +79,16 @@ func (b *Bot) Run() {
 		// Run large motors on B at speed -50 and C at speed 50, wait for 1 second and then brake.
 		b.RMotor.SetSpeed(-50)
 		b.LMotor.SetSpeed(50)
-		checkErrors(b.RMotor, b.LMotor)
+		motor.CheckErrors(b.RMotor, b.LMotor)
 		time.Sleep(time.Second)
 		b.RMotor.Stop()
 		b.LMotor.Stop()
-		checkErrors(b.RMotor, b.LMotor)
+		motor.CheckErrors(b.RMotor, b.LMotor)
 	}
 }
 
 func (b *Bot) Exit() {
 	ev3.LCD.Close()
-}
-
-func NewMotor(port, deviceName string) (*Motor, error) {
-	var err error
-	var motor *ev3dev.TachoMotor
-	// Get the handle for the medium motor on outA.
-	motor, err = ev3dev.TachoMotorFor("ev3-ports:"+port, deviceName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find %s motor on %s: %v", deviceName, port, err)
-	}
-	err = motor.SetStopAction("brake").Err()
-	if err != nil {
-		return nil, fmt.Errorf("failed to set brake stop for %s motor on %s: %v", deviceName, port, err)
-	}
-	speed := motor.MaxSpeed()
-
-	result := &Motor{
-		motor,
-		speed,
-	}
-	return result, nil
-}
-
-func (m *Motor) Run(speed int) {
-	m.SetSpeed(speed)
-	time.Sleep(time.Second / 2)
-	m.Stop()
-	checkErrors(m)
-}
-
-func (m *Motor) SetSpeed(speed int) {
-	m.SetSpeedSetpoint(speed * m.MaxSpeed / 100).Command("run-forever")
-}
-
-func (m *Motor) Stop() {
-	m.Command("stop")
-}
-
-func main() {
-	bot := NewBot()
-	defer bot.Exit()
-
-	bot.Run()
-}
-
-func checkErrors(devs ...*Motor) {
-	for _, d := range devs {
-		err := d.TachoMotor.Err()
-		if err != nil {
-			drv, dErr := ev3dev.DriverFor(d)
-			if dErr != nil {
-				drv = fmt.Sprintf("(missing driver name: %v)", dErr)
-			}
-			addr, aErr := ev3dev.AddressOf(d)
-			if aErr != nil {
-				drv = fmt.Sprintf("(missing port address: %v)", aErr)
-			}
-			log.Fatalf("motor error for %s:%s on port %s: %v", d, drv, addr, err)
-		}
-	}
 }
 
 var gopherSquint = &fb.Monochrome{
